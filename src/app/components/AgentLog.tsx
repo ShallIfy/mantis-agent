@@ -7,8 +7,9 @@ interface LogEntry {
   cycleId: string;
   timestamp: number;
   decision: {
-    analysis: { summary: string; risk_level: string };
-    decision: { action: string; confidence: number; urgency: string; reasoning: string };
+    thinking?: string;
+    analysis: { summary: string; risk_level?: string; [key: string]: unknown };
+    decision: { action: string; confidence: number; urgency?: string; reasoning: string } | string;
     user_message: string;
   };
   phases: {
@@ -22,6 +23,21 @@ export default function AgentLog() {
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [running, setRunning] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [showThinking, setShowThinking] = useState<string | null>(null);
+
+  // Helper to safely extract decision fields
+  const getAction = (entry: LogEntry) => {
+    const d = entry.decision.decision;
+    return typeof d === 'string' ? d : d?.action || 'hold';
+  };
+  const getReasoning = (entry: LogEntry) => {
+    const d = entry.decision.decision;
+    return typeof d === 'string' ? d : d?.reasoning || '';
+  };
+  const getConfidence = (entry: LogEntry) => {
+    const d = entry.decision.decision;
+    return typeof d === 'string' ? 0 : d?.confidence || 0;
+  };
 
   const runCycle = async () => {
     setRunning(true);
@@ -90,8 +106,10 @@ export default function AgentLog() {
 
       <div className="space-y-2 max-h-[400px] overflow-y-auto">
         {logs.map(entry => {
-          const Icon = actionIcons[entry.decision.decision.action] || CheckCircle;
+          const action = getAction(entry);
+          const Icon = actionIcons[action] || CheckCircle;
           const isExpanded = expanded === entry.cycleId;
+          const isThinkingShown = showThinking === entry.cycleId;
 
           return (
             <div
@@ -101,10 +119,15 @@ export default function AgentLog() {
             >
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-2">
-                  <Icon className={`w-4 h-4 ${actionColors[entry.decision.decision.action]}`} />
-                  <span className={`text-xs font-medium uppercase ${actionColors[entry.decision.decision.action]}`}>
-                    {entry.decision.decision.action}
+                  <Icon className={`w-4 h-4 ${actionColors[action]}`} />
+                  <span className={`text-xs font-medium uppercase ${actionColors[action]}`}>
+                    {action}
                   </span>
+                  {entry.decision.thinking && (
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-900/30 text-purple-400 border border-purple-800/30">
+                      thinking
+                    </span>
+                  )}
                 </div>
                 <div className="flex items-center gap-1 text-xs text-gray-500">
                   <Clock className="w-3 h-3" />
@@ -118,17 +141,17 @@ export default function AgentLog() {
                 <div className="mt-3 pt-3 border-t border-[var(--card-border)] text-xs space-y-2">
                   <div>
                     <span className="text-gray-500">Summary: </span>
-                    <span>{entry.decision.analysis.summary}</span>
+                    <span>{entry.decision.analysis?.summary}</span>
                   </div>
                   <div>
                     <span className="text-gray-500">Reasoning: </span>
-                    <span>{entry.decision.decision.reasoning}</span>
+                    <span>{getReasoning(entry)}</span>
                   </div>
                   <div>
                     <span className="text-gray-500">Confidence: </span>
-                    <span>{(entry.decision.decision.confidence * 100).toFixed(0)}%</span>
+                    <span>{(getConfidence(entry) * 100).toFixed(0)}%</span>
                     <span className="text-gray-500 ml-3">Risk: </span>
-                    <span>{entry.decision.analysis.risk_level}</span>
+                    <span>{entry.decision.analysis?.risk_level || 'N/A'}</span>
                   </div>
                   <div className="flex gap-4 text-gray-500">
                     <span>Observe: {entry.phases.observe.durationMs}ms</span>
@@ -138,6 +161,21 @@ export default function AgentLog() {
                   {entry.phases.act.violations.length > 0 && (
                     <div className="text-red-400">
                       Safety violations: {entry.phases.act.violations.join(', ')}
+                    </div>
+                  )}
+                  {entry.decision.thinking && (
+                    <div className="mt-2">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setShowThinking(isThinkingShown ? null : entry.cycleId); }}
+                        className="text-purple-400 hover:text-purple-300 text-[11px] flex items-center gap-1"
+                      >
+                        {isThinkingShown ? '▼' : '▶'} Chain of Thought ({entry.decision.thinking.length} chars)
+                      </button>
+                      {isThinkingShown && (
+                        <pre className="mt-2 p-2 bg-purple-950/20 border border-purple-900/30 rounded text-[11px] text-purple-300/80 whitespace-pre-wrap max-h-[300px] overflow-y-auto">
+                          {entry.decision.thinking}
+                        </pre>
+                      )}
                     </div>
                   )}
                 </div>

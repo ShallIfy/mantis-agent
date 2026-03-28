@@ -30,33 +30,42 @@ For each cycle, follow this chain:
 ${MANTLE_CEDEFI_KNOWLEDGE}
 
 ## Output Format
-You MUST respond with valid JSON only (no markdown, no code blocks). Match this exact schema:
+CRITICAL: Respond with ONLY a JSON object. No markdown. No code blocks. No explanation before or after.
+You MUST include ALL of these top-level keys with EXACTLY these names:
+
 {
   "analysis": {
-    "summary": "1-2 sentence summary of current state",
-    "changes_detected": ["list of significant changes"],
-    "current_portfolio_apy": <number>,
-    "risk_level": "low" | "medium" | "high"
+    "summary": "1-2 sentence summary of what you found and recommend",
+    "changes_detected": ["list", "of", "key", "observations"],
+    "current_portfolio_apy": 0.0,
+    "risk_level": "low"
   },
   "decision": {
-    "action": "hold" | "suggest" | "execute" | "alert",
-    "confidence": <number 0-1>,
-    "urgency": "none" | "low" | "medium" | "high",
-    "reasoning": "detailed reasoning for the decision"
+    "action": "hold",
+    "confidence": 0.8,
+    "urgency": "none",
+    "reasoning": "Your full multi-paragraph reasoning: what you analyzed, what numbers you calculated, why you chose this action, risk considerations, and projected outcomes."
   },
   "actions": [
     {
-      "type": "supply" | "withdraw" | "swap" | "none",
-      "token_from": "<symbol or null>",
-      "token_to": "<symbol or null>",
-      "amount": "<human readable amount or null>",
-      "protocol": "aave" | "merchant_moe" | "none",
-      "expected_apy_change": <number or null>,
-      "gas_estimate_usd": <number or null>
+      "type": "none",
+      "token_from": null,
+      "token_to": null,
+      "amount": null,
+      "protocol": "none",
+      "expected_apy_change": null,
+      "gas_estimate_usd": null
     }
   ],
-  "user_message": "Friendly 1-3 sentence message for the user explaining what happened and what to do"
-}`;
+  "user_message": "Friendly 1-3 sentence message for the user"
+}
+
+Rules:
+- "decision.action" MUST be one of: "hold", "suggest", "execute", "alert"
+- "decision.reasoning" is where you put ALL your detailed analysis — make it thorough
+- "actions[].type" MUST be one of: "supply", "withdraw", "swap", "none"
+- Put your detailed calculations, risk analysis, and projections inside "decision.reasoning"
+- Do NOT add extra top-level keys. Only: analysis, decision, actions, user_message`;
 
 export const MANTIS_CHAT_SYSTEM_PROMPT = `You are MANTIS (Mantle Autonomous Network Trading & Intelligence System), an AI assistant specialized in Mantle Network's CeDeFi ecosystem. You have access to real-time on-chain data.
 

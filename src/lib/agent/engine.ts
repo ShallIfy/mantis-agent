@@ -2,6 +2,95 @@ import Anthropic from '@anthropic-ai/sdk';
 import { MANTIS_SYSTEM_PROMPT } from './prompts';
 import type { StateSnapshot, AgentDecision } from '@/lib/types';
 
+/**
+ * Normalize Claude's creative JSON output to our expected AgentDecision schema.
+ * Claude with extended thinking often returns richer/different formats.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function normalizeDecision(raw: any): AgentDecision {
+  // If it already matches our schema, return as-is
+  if (raw.decision?.action && raw.analysis?.summary && raw.user_message) {
+    return raw as AgentDecision;
+  }
+
+  // Extract analysis summary from various possible locations
+  const summary = raw.analysis?.summary
+    || raw.analysis?.currentState
+    || raw.summary
+    || JSON.stringify(raw.analysis || {}).substring(0, 300);
+
+  // Extract risk level
+  const riskLevel = raw.analysis?.risk_level
+    || raw.analysis?.riskLevel
+    || raw.expectedPortfolioMetrics?.riskLevel?.toLowerCase()
+    || 'medium';
+
+  // Extract current APY
+  const currentApy = raw.analysis?.current_portfolio_apy
+    || raw.expectedPortfolioMetrics?.weightedAverageAPY
+    || raw.allocationPlan?.targetWeightedAPY
+    || 0;
+
+  // Extract decision action
+  const hasActions = (raw.actions?.length > 0 && raw.actions[0]?.type !== 'none')
+    || (raw.recommendedActions?.length > 0)
+    || (raw.allocationPlan?.tiers?.length > 0);
+  const action = raw.decision?.action || (hasActions ? 'suggest' : 'hold');
+
+  // Build reasoning from all available detail
+  const reasoningParts: string[] = [];
+  if (raw.decision?.reasoning) reasoningParts.push(raw.decision.reasoning);
+  if (raw.analysis?.recommendedStrategy) reasoningParts.push(`Strategy: ${raw.analysis.recommendedStrategy}`);
+  if (raw.allocationPlan) {
+    reasoningParts.push(`Target APY: ${raw.allocationPlan.targetWeightedAPY || 'N/A'}%`);
+    reasoningParts.push(`Projected annual income: $${raw.allocationPlan.projectedAnnualIncomeUSD || raw.expectedPortfolioMetrics?.estimatedAnnualYieldUSD || 'N/A'}`);
+  }
+  if (raw.analysis?.keyRisks?.length) {
+    reasoningParts.push(`Key risks: ${raw.analysis.keyRisks.join('; ')}`);
+  }
+  if (raw.monitoringAlerts?.length) {
+    reasoningParts.push(`Monitoring: ${raw.monitoringAlerts.map((a: { trigger: string }) => a.trigger).join('; ')}`);
+  }
+  // If still empty, serialize the whole thing
+  if (reasoningParts.length === 0) {
+    reasoningParts.push(JSON.stringify(raw, null, 2).substring(0, 2000));
+  }
+
+  // Extract user message
+  const userMessage = raw.user_message
+    || `Analysis complete. ${summary.substring(0, 150)}`;
+
+  // Normalize actions to our format
+  const normalizedActions = (raw.actions || raw.recommendedActions || [])
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    .slice(0, 5).map((a: any) => ({
+      type: a.type || a.action || 'none',
+      token_from: a.token_from || a.fromToken || null,
+      token_to: a.token_to || a.toToken || null,
+      amount: a.amount || a.fromAmount?.toString() || null,
+      protocol: a.protocol || 'none',
+      expected_apy_change: a.expected_apy_change || a.expectedAPY || null,
+      gas_estimate_usd: a.gas_estimate_usd || null,
+    }));
+
+  return {
+    analysis: {
+      summary,
+      changes_detected: raw.analysis?.changes_detected || raw.analysis?.marketObservations || [],
+      current_portfolio_apy: currentApy,
+      risk_level: riskLevel as 'low' | 'medium' | 'high',
+    },
+    decision: {
+      action: action as 'hold' | 'suggest' | 'execute' | 'alert',
+      confidence: raw.decision?.confidence || 0.7,
+      urgency: raw.decision?.urgency || (hasActions ? 'medium' : 'none'),
+      reasoning: reasoningParts.join('\n\n'),
+    },
+    actions: normalizedActions.length > 0 ? normalizedActions : [{ type: 'none', token_from: null, token_to: null, amount: null, protocol: 'none', expected_apy_change: null, gas_estimate_usd: null }],
+    user_message: userMessage,
+  };
+}
+
 const client = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
   // @anthropic-ai/sdk appends /v1/messages, so baseURL should NOT include /v1
@@ -76,8 +165,11 @@ function formatSnapshotForClaude(snapshot: StateSnapshot, previousDecision?: Age
   // Previous decision
   if (previousDecision) {
     lines.push('### Previous Decision');
-    lines.push(`Action: ${previousDecision.decision.action}`);
-    lines.push(`Summary: ${previousDecision.analysis.summary}`);
+    const prevAction = typeof previousDecision.decision === 'string'
+      ? previousDecision.decision
+      : previousDecision.decision?.action || 'unknown';
+    lines.push(`Action: ${prevAction}`);
+    lines.push(`Summary: ${previousDecision.analysis?.summary || 'N/A'}`);
     lines.push('');
   }
 
@@ -92,20 +184,32 @@ export async function runReasoningEngine(
 ): Promise<AgentDecision> {
   const userMessage = formatSnapshotForClaude(snapshot, previousDecision);
 
-  const response = await client.messages.create({
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const response = await (client.messages.create as any)({
     model: 'claude-sonnet-4-6',
     max_tokens: 16000,
     thinking: {
       type: 'enabled',
       budget_tokens: 10000,
     },
+    temperature: 1, // required when thinking is enabled
     system: MANTIS_SYSTEM_PROMPT,
     messages: [{ role: 'user', content: userMessage }],
   });
 
   // With thinking enabled, response has thinking blocks + text blocks
-  const textBlock = response.content.find(b => b.type === 'text');
-  const text = textBlock?.type === 'text' ? textBlock.text : '';
+  // Extract thinking for logging, text for JSON parsing
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const thinkingBlock = response.content.find((b: any) => b.type === 'thinking');
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const textBlock = response.content.find((b: any) => b.type === 'text');
+  const thinkingContent = thinkingBlock?.thinking || '';
+  const text = textBlock?.text || '';
+
+  // Log thinking for debugging
+  if (thinkingContent) {
+    console.log(`[MANTIS] Thinking (${thinkingContent.length} chars):`, thinkingContent.substring(0, 300) + '...');
+  }
 
   // Parse JSON — handle code blocks, embedded JSON, or clean JSON
   let jsonStr = text.trim();
@@ -128,10 +232,19 @@ export async function runReasoningEngine(
   }
 
   try {
-    return JSON.parse(jsonStr.trim()) as AgentDecision;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const raw = JSON.parse(jsonStr.trim()) as any;
+
+    // Normalize Claude's creative output to our expected schema
+    const normalized = normalizeDecision(raw);
+    if (thinkingContent) {
+      normalized.thinking = thinkingContent;
+    }
+    return normalized;
   } catch {
-    // If parsing fails, return a safe hold decision
+    // If parsing fails, return a safe hold decision with thinking attached
     return {
+      thinking: thinkingContent || undefined,
       analysis: {
         summary: 'Failed to parse reasoning engine output. Defaulting to hold.',
         changes_detected: ['parsing_error'],

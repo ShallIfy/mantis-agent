@@ -95,20 +95,25 @@ export interface AgentAction {
 
 export interface AgentDecision {
   timestamp?: number;
+  thinking?: string; // Extended thinking chain-of-thought (from Claude thinking block)
   analysis: {
     summary: string;
-    changes_detected: string[];
-    current_portfolio_apy: number;
-    risk_level: 'low' | 'medium' | 'high';
+    changes_detected?: string[];
+    current_portfolio_apy?: number;
+    risk_level?: 'low' | 'medium' | 'high';
+    // Allow flexible fields from Claude reasoning
+    [key: string]: unknown;
   };
   decision: {
     action: 'hold' | 'suggest' | 'execute' | 'alert';
     confidence: number;
-    urgency: 'none' | 'low' | 'medium' | 'high';
+    urgency?: 'none' | 'low' | 'medium' | 'high';
     reasoning: string;
-  };
-  actions: AgentAction[];
+  } | string; // Claude sometimes returns a string
+  actions?: AgentAction[];
   user_message: string;
+  // Allow additional fields from Claude
+  [key: string]: unknown;
 }
 
 export interface ExecutionResult {
