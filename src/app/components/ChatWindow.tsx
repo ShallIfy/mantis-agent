@@ -1,7 +1,7 @@
 'use client';
 
 import { useChat } from '@ai-sdk/react';
-import { TextStreamChatTransport } from 'ai';
+import { DefaultChatTransport } from 'ai';
 import { Send, Bot, User, Loader2 } from 'lucide-react';
 import { useRef, useEffect, useState, useMemo, type FormEvent } from 'react';
 
@@ -21,7 +21,7 @@ function getMessageText(message: { parts?: Array<{ type: string; text?: string }
 }
 
 export default function ChatWindow({ fullPage = false }: { fullPage?: boolean }) {
-  const transport = useMemo(() => new TextStreamChatTransport({ api: '/api/chat' }), []);
+  const transport = useMemo(() => new DefaultChatTransport({ api: '/api/chat' }), []);
   const { messages, sendMessage, status } = useChat({ transport });
   const [inputValue, setInputValue] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);

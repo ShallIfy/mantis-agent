@@ -4,6 +4,10 @@ import type { StateSnapshot, AgentDecision } from '@/lib/types';
 
 const client = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
+  // @anthropic-ai/sdk appends /v1/messages, so baseURL should NOT include /v1
+  baseURL: process.env.ANTHROPIC_BASE_URL
+    ? process.env.ANTHROPIC_BASE_URL.replace(/\/v1$/, '')
+    : 'https://api.anthropic.com',
 });
 
 function formatSnapshotForClaude(snapshot: StateSnapshot, previousDecision?: AgentDecision): string {
@@ -89,7 +93,7 @@ export async function runReasoningEngine(
   const userMessage = formatSnapshotForClaude(snapshot, previousDecision);
 
   const response = await client.messages.create({
-    model: 'claude-sonnet-4-5-20250514',
+    model: 'claude-sonnet-4-6',
     max_tokens: 2000,
     system: MANTIS_SYSTEM_PROMPT,
     messages: [{ role: 'user', content: userMessage }],

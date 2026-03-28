@@ -12,6 +12,7 @@ export function checkSafety(
 ): SafetyCheckResult {
   const violations: string[] = [];
   const warnings: string[] = [];
+  const actions = decision.actions || [];
 
   // RULE 1: Health Factor Floor
   const hf = snapshot.aave.account.healthFactor;
@@ -19,7 +20,7 @@ export function checkSafety(
 
   if (hasDebt && hf !== null && hf < MIN_HEALTH_FACTOR) {
     // Only allow withdrawals/repayments when HF is low
-    const nonProtective = decision.actions.filter(
+    const nonProtective = actions.filter(
       a => a.type !== 'withdraw' && a.type !== 'none'
     );
     if (nonProtective.length > 0) {
@@ -39,7 +40,7 @@ export function checkSafety(
   // RULE 3: Max Position Move (50% of portfolio)
   const totalValue = snapshot.wallet.totalValueUSD;
   if (totalValue > 0) {
-    for (const action of decision.actions) {
+    for (const action of actions) {
       if (action.type === 'none') continue;
       if (!action.amount) continue;
 
@@ -66,7 +67,7 @@ export function checkSafety(
   }
 
   // RULE 4: Gas Profitability Check
-  for (const action of decision.actions) {
+  for (const action of actions) {
     if (action.type === 'none') continue;
     if (action.gas_estimate_usd && action.expected_apy_change) {
       const estimatedWeeklyGain = (action.expected_apy_change / 100 / 52) * totalValue;
@@ -82,6 +83,6 @@ export function checkSafety(
     passed: violations.length === 0,
     violations,
     warnings,
-    adjustedActions: violations.length === 0 ? decision.actions : [],
+    adjustedActions: violations.length === 0 ? actions : [],
   };
 }

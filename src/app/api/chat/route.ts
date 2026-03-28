@@ -1,12 +1,22 @@
-import { anthropic } from '@ai-sdk/anthropic';
-import { streamText } from 'ai';
+import { createAnthropic } from '@ai-sdk/anthropic';
+import { streamText, type UIMessage } from 'ai';
 import { buildStateSnapshot } from '@/lib/collectors';
 import { MANTIS_CHAT_SYSTEM_PROMPT } from '@/lib/agent/prompts';
 
 export const maxDuration = 60;
 
 export async function POST(req: Request) {
-  const { messages } = await req.json();
+  const { messages: uiMessages } = await req.json();
+
+  // Convert UIMessages to core message format for streamText
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const messages = (uiMessages as any[]).map((m: any) => ({
+    role: m.role as 'user' | 'assistant',
+    content: m.parts
+      ?.filter((p: any) => p.type === 'text')
+      .map((p: any) => p.text || '')
+      .join('') || m.content || '',
+  }));
 
   // Fetch fresh data to inject into context
   const wallet = process.env.NEXT_PUBLIC_DEMO_WALLET || '0x0000000000000000000000000000000000000001';
@@ -58,11 +68,16 @@ ${priceLines}`;
     liveDataContext = '\n\n(Live data temporarily unavailable. Answer based on general knowledge.)';
   }
 
+  const anthropic = createAnthropic({
+    baseURL: process.env.ANTHROPIC_BASE_URL || 'https://api.anthropic.com',
+    apiKey: process.env.ANTHROPIC_API_KEY,
+  });
+
   const result = streamText({
-    model: anthropic('claude-sonnet-4-5-20250514'),
+    model: anthropic('claude-sonnet-4-6'),
     system: MANTIS_CHAT_SYSTEM_PROMPT + liveDataContext,
     messages,
   });
 
-  return result.toTextStreamResponse();
+  return result.toUIMessageStreamResponse();
 }

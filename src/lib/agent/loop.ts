@@ -41,16 +41,23 @@ export async function runAgentCycle(
   const actStart = Date.now();
   let executionResults: ExecutionResult[] = [];
 
-  if (decision.decision.action === 'hold' || decision.decision.action === 'alert') {
+  // Normalize decision.decision — Claude may return unexpected formats
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const decisionField = decision.decision as any;
+  const actionType: string = typeof decisionField === 'string'
+    ? decisionField.toLowerCase()
+    : (decisionField?.action || 'hold').toString().toLowerCase();
+
+  const actions = decision.actions || [];
+  if (actionType === 'hold' || actionType === 'alert' || actionType === 'none') {
     phases.act.safetyPassed = true;
-  } else if (decision.actions.length > 0) {
+  } else if (actions.length > 0) {
     const safetyCheck = checkSafety(decision, snapshot, config);
     phases.act.safetyPassed = safetyCheck.passed;
     phases.act.violations = safetyCheck.violations;
 
     if (safetyCheck.passed) {
-      // Only auto-execute for urgent actions; otherwise simulate
-      const execMode = decision.decision.action === 'execute' ? mode : 'simulate';
+      const execMode = actionType === 'execute' ? mode : 'simulate';
       executionResults = await executeActions(safetyCheck.adjustedActions, snapshot, execMode);
     }
   }
