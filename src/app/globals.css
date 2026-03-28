@@ -1,0 +1,56 @@
+@import "tailwindcss";
+
+:root {
+  --background: #0a0f0d;
+  --foreground: #e0e0e0;
+  --mantis-green: #00D26E;
+  --mantis-green-dim: #00A858;
+  --mantis-dark: #0d1a14;
+  --card-bg: #111a15;
+  --card-border: #1a2f22;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--mantis-dark);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--card-border);
+  border-radius: 3px;
+}
+
+/* Custom utility classes */
+.mantis-card {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  padding: 1.25rem;
+}
+
+.mantis-glow {
+  box-shadow: 0 0 20px rgba(0, 210, 110, 0.1);
+}
+
+.text-mantis {
+  color: var(--mantis-green);
+}
+
+.bg-mantis {
+  background-color: var(--mantis-green);
+}
