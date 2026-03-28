@@ -81,7 +81,7 @@ function formatSnapshotForClaude(snapshot: StateSnapshot, previousDecision?: Age
     lines.push('');
   }
 
-  lines.push('Analyze this state and provide your decision as JSON.');
+  lines.push('Analyze this state. IMPORTANT: Your response must be ONLY the JSON object, nothing else. No markdown, no explanation, no code blocks — just raw JSON matching the schema.');
 
   return lines.join('\n');
 }
@@ -94,18 +94,37 @@ export async function runReasoningEngine(
 
   const response = await client.messages.create({
     model: 'claude-sonnet-4-6',
-    max_tokens: 2000,
+    max_tokens: 16000,
+    thinking: {
+      type: 'enabled',
+      budget_tokens: 10000,
+    },
     system: MANTIS_SYSTEM_PROMPT,
     messages: [{ role: 'user', content: userMessage }],
   });
 
-  const text = response.content[0].type === 'text' ? response.content[0].text : '';
+  // With thinking enabled, response has thinking blocks + text blocks
+  const textBlock = response.content.find(b => b.type === 'text');
+  const text = textBlock?.type === 'text' ? textBlock.text : '';
 
-  // Parse JSON — handle possible markdown code blocks
-  let jsonStr = text;
+  // Parse JSON — handle code blocks, embedded JSON, or clean JSON
+  let jsonStr = text.trim();
+
+  // Try 1: code block
   const codeBlockMatch = text.match(/```(?:json)?\s*\n?([\s\S]*?)\n?\s*```/);
   if (codeBlockMatch) {
-    jsonStr = codeBlockMatch[1];
+    jsonStr = codeBlockMatch[1].trim();
+  }
+
+  // Try 2: find first { ... } block if not valid JSON
+  try {
+    JSON.parse(jsonStr);
+  } catch {
+    const braceStart = text.indexOf('{');
+    const braceEnd = text.lastIndexOf('}');
+    if (braceStart !== -1 && braceEnd > braceStart) {
+      jsonStr = text.substring(braceStart, braceEnd + 1);
+    }
   }
 
   try {
