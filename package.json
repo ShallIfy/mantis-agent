@@ -12,6 +12,7 @@
     "@ai-sdk/anthropic": "^3.0.64",
     "@ai-sdk/react": "^3.0.143",
     "@anthropic-ai/sdk": "^0.80.0",
+    "@modelcontextprotocol/sdk": "^1.28.0",
     "ai": "^6.0.141",
     "clsx": "^2.1.1",
     "lucide-react": "^1.7.0",

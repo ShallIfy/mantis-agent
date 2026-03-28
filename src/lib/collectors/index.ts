@@ -3,6 +3,9 @@ import { getAaveReserves, getAaveUserAccount, getAaveUserPositions } from './aav
 import { getMantleYieldPools } from './defillama';
 import { getTokenPrices, buildPriceMap } from './prices';
 import { getWalletBalances } from './wallet';
+import { getBybitEarnProducts } from './bybit';
+import { getCianVaults } from './cian';
+import { getMcpData } from './mcp';
 import type { StateSnapshot } from '@/lib/types';
 
 export async function buildStateSnapshot(walletAddress: string): Promise<StateSnapshot> {
@@ -26,13 +29,16 @@ export async function buildStateSnapshot(walletAddress: string): Promise<StateSn
   const priceMap = buildPriceMap(prices);
 
   // Fetch everything else in parallel
-  const [reservesResult, accountResult, positionsResult, walletResult, poolsResult] =
+  const [reservesResult, accountResult, positionsResult, walletResult, poolsResult, bybitResult, cianResult, mcpResult] =
     await Promise.allSettled([
       getAaveReserves(),
       getAaveUserAccount(walletAddress),
       getAaveUserPositions(walletAddress, priceMap),
       getWalletBalances(walletAddress, priceMap),
       getMantleYieldPools(),
+      getBybitEarnProducts(),
+      getCianVaults(),
+      getMcpData(),
     ]);
 
   const reserves = reservesResult.status === 'fulfilled' ? reservesResult.value : [];
@@ -62,6 +68,21 @@ export async function buildStateSnapshot(walletAddress: string): Promise<StateSn
     errors.push(`DefiLlama pools failed: ${poolsResult.reason}`);
   }
 
+  const bybitProducts = bybitResult.status === 'fulfilled' ? bybitResult.value : [];
+  if (bybitResult.status === 'rejected') {
+    errors.push(`Bybit Earn failed: ${bybitResult.reason}`);
+  }
+
+  const cianVaults = cianResult.status === 'fulfilled' ? cianResult.value : [];
+  if (cianResult.status === 'rejected') {
+    errors.push(`CIAN vaults failed: ${cianResult.reason}`);
+  }
+
+  const mcpData = mcpResult.status === 'fulfilled' ? mcpResult.value : { lendingMarkets: [], chainStatus: null };
+  if (mcpResult.status === 'rejected') {
+    errors.push(`MCP scaffold failed: ${mcpResult.reason}`);
+  }
+
   const totalWalletValue = walletBalances.reduce((sum, b) => sum + b.valueUSD, 0)
     + account.totalCollateralUSD;
 
@@ -82,6 +103,13 @@ export async function buildStateSnapshot(walletAddress: string): Promise<StateSn
       mantlePools: pools,
       topByAPY: pools.slice(0, 10),
     },
+    bybit: {
+      products: bybitProducts,
+    },
+    cian: {
+      vaults: cianVaults,
+    },
+    mcp: mcpData,
     prices,
     metadata: {
       collectionTimeMs: Date.now() - startTime,

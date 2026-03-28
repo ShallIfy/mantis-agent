@@ -18,10 +18,32 @@ interface Pool {
   tvlUsd: number;
 }
 
+interface BybitProduct {
+  productId: string;
+  coin: string;
+  estimateApr: number;
+  duration: string;
+  swapCoin: string;
+  minStakeAmount: string;
+}
+
+interface CianVault {
+  poolName: string;
+  poolAddress: string;
+  apy: number;
+  netApy: number | null;
+  tvlUsd: number;
+  feePerformance: number | null;
+}
+
+type TabType = 'aave' | 'bybit' | 'cian' | 'ecosystem';
+
 export default function YieldTable() {
   const [reserves, setReserves] = useState<Reserve[]>([]);
   const [pools, setPools] = useState<Pool[]>([]);
-  const [tab, setTab] = useState<'aave' | 'ecosystem'>('aave');
+  const [bybitProducts, setBybitProducts] = useState<BybitProduct[]>([]);
+  const [cianVaults, setCianVaults] = useState<CianVault[]>([]);
+  const [tab, setTab] = useState<TabType>('aave');
 
   useEffect(() => {
     const wallet = process.env.NEXT_PUBLIC_DEMO_WALLET || '0x0000000000000000000000000000000000000001';
@@ -30,9 +52,18 @@ export default function YieldTable() {
       .then(data => {
         setReserves(data.aave?.reserves || []);
         setPools(data.yields?.topByAPY || []);
+        setBybitProducts(data.bybit?.products || []);
+        setCianVaults(data.cian?.vaults || []);
       })
       .catch(() => {});
   }, []);
+
+  const tabs: { key: TabType; label: string }[] = [
+    { key: 'aave', label: 'Aave V3' },
+    { key: 'bybit', label: 'Bybit' },
+    { key: 'cian', label: 'CIAN' },
+    { key: 'ecosystem', label: 'All' },
+  ];
 
   return (
     <div className="mantis-card">
@@ -41,22 +72,19 @@ export default function YieldTable() {
           <TrendingUp className="w-4 h-4" /> Yield Opportunities
         </h2>
         <div className="flex gap-1 text-xs">
-          <button
-            onClick={() => setTab('aave')}
-            className={`px-2 py-1 rounded ${tab === 'aave' ? 'bg-[var(--mantis-green)] text-black font-medium' : 'text-gray-400'}`}
-          >
-            Aave V3
-          </button>
-          <button
-            onClick={() => setTab('ecosystem')}
-            className={`px-2 py-1 rounded ${tab === 'ecosystem' ? 'bg-[var(--mantis-green)] text-black font-medium' : 'text-gray-400'}`}
-          >
-            Ecosystem
-          </button>
+          {tabs.map(t => (
+            <button
+              key={t.key}
+              onClick={() => setTab(t.key)}
+              className={`px-2 py-1 rounded ${tab === t.key ? 'bg-[var(--mantis-green)] text-black font-medium' : 'text-gray-400'}`}
+            >
+              {t.label}
+            </button>
+          ))}
         </div>
       </div>
 
-      {tab === 'aave' ? (
+      {tab === 'aave' && (
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -82,7 +110,67 @@ export default function YieldTable() {
             </tbody>
           </table>
         </div>
-      ) : (
+      )}
+
+      {tab === 'bybit' && (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-gray-500 text-xs border-b border-[var(--card-border)]">
+                <th className="text-left py-2">Coin</th>
+                <th className="text-right py-2">APR</th>
+                <th className="text-left py-2">Type</th>
+                <th className="text-left py-2">Receive</th>
+              </tr>
+            </thead>
+            <tbody>
+              {bybitProducts.map(p => (
+                <tr key={p.productId} className="border-b border-[var(--card-border)] border-opacity-30">
+                  <td className="py-2 font-medium">{p.coin}</td>
+                  <td className="py-2 text-right text-mantis">{p.estimateApr.toFixed(2)}%</td>
+                  <td className="py-2 text-gray-400">{p.duration}</td>
+                  <td className="py-2 text-gray-400">{p.swapCoin || '—'}</td>
+                </tr>
+              ))}
+              {bybitProducts.length === 0 && (
+                <tr><td colSpan={4} className="py-4 text-center text-gray-500">Loading...</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {tab === 'cian' && (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-gray-500 text-xs border-b border-[var(--card-border)]">
+                <th className="text-left py-2">Vault</th>
+                <th className="text-right py-2">APY</th>
+                <th className="text-right py-2">Net APY</th>
+                <th className="text-right py-2">TVL</th>
+              </tr>
+            </thead>
+            <tbody>
+              {cianVaults.map(v => (
+                <tr key={v.poolAddress} className="border-b border-[var(--card-border)] border-opacity-30">
+                  <td className="py-2 font-medium text-xs">{v.poolName}</td>
+                  <td className="py-2 text-right text-mantis">{v.apy.toFixed(2)}%</td>
+                  <td className="py-2 text-right text-yellow-400">{v.netApy !== null ? `${v.netApy.toFixed(2)}%` : '—'}</td>
+                  <td className="py-2 text-right text-gray-400">
+                    ${v.tvlUsd > 1e6 ? `${(v.tvlUsd / 1e6).toFixed(0)}M` : `${(v.tvlUsd / 1e3).toFixed(0)}K`}
+                  </td>
+                </tr>
+              ))}
+              {cianVaults.length === 0 && (
+                <tr><td colSpan={4} className="py-4 text-center text-gray-500">Loading...</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {tab === 'ecosystem' && (
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>

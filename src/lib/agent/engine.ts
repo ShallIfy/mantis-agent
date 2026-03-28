@@ -145,6 +145,44 @@ function formatSnapshotForClaude(snapshot: StateSnapshot, previousDecision?: Age
   }
   lines.push('');
 
+  // Bybit Earn products
+  if (snapshot.bybit?.products?.length > 0) {
+    lines.push('### Bybit Earn OnChain Products (CeDeFi)');
+    for (const p of snapshot.bybit.products) {
+      const swapInfo = p.swapCoin ? ` → receive ${p.swapCoin}` : '';
+      const termInfo = p.duration === 'Fixed' ? ` (${p.term}d lock)` : ' (Flexible)';
+      lines.push(`- ${p.coin}: ${p.estimateApr.toFixed(2)}% APR${termInfo}${swapInfo} [min ${p.minStakeAmount}, max ${p.maxStakeAmount}]`);
+    }
+    lines.push('');
+  }
+
+  // CIAN Vaults
+  if (snapshot.cian?.vaults?.length > 0) {
+    lines.push('### CIAN Yield Layer Vaults (Mantle)');
+    for (const v of snapshot.cian.vaults) {
+      const netApyStr = v.netApy !== null ? `, Net APY ${v.netApy.toFixed(2)}%` : '';
+      const feeStr = v.feePerformance !== null ? `, Perf fee ${v.feePerformance}%` : '';
+      lines.push(`- ${v.poolName}: APY ${v.apy.toFixed(2)}%${netApyStr} (TVL $${(v.tvlUsd / 1e6).toFixed(1)}M${feeStr})`);
+      if (v.totalAssets) {
+        lines.push(`  On-chain: totalAssets=${v.totalAssets}, totalSupply=${v.totalSupply}`);
+      }
+    }
+    lines.push('');
+  }
+
+  // MCP Lending Markets (from Mantle Agent Scaffold)
+  if (snapshot.mcp?.lendingMarkets?.length > 0) {
+    lines.push('### MCP: Lending Markets (via Mantle Agent Scaffold)');
+    for (const m of snapshot.mcp.lendingMarkets) {
+      lines.push(`- ${m.protocol}/${m.asset}: Supply ${m.supplyApy?.toFixed?.(2) || m.supplyApy}% / Borrow ${m.borrowApy?.toFixed?.(2) || m.borrowApy}%`);
+    }
+    lines.push('');
+  }
+  if (snapshot.mcp?.chainStatus) {
+    lines.push(`### MCP: Chain Status — Block ${snapshot.mcp.chainStatus.blockNumber}, Gas Price ${snapshot.mcp.chainStatus.gasPrice}`);
+    lines.push('');
+  }
+
   // Prices
   lines.push('### Token Prices');
   for (const p of snapshot.prices) {

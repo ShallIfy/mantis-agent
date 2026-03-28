@@ -1,0 +1,32 @@
+{
+  "type": "https://eips.ethereum.org/EIPS/eip-8004#registration-v1",
+  "name": "MANTIS",
+  "description": "Autonomous CeDeFi agent on Mantle | Built on Agent Scaffold + MCP + Agent Skills | OBSERVE → DECIDE → ACT",
+  "image": "https://raw.githubusercontent.com/ShallIfy/mantis-agent/main/public/mantis-logo.png",
+  "services": [
+    {
+      "name": "mantis-defi-agent",
+      "endpoint": "http://72.61.209.138:3001/api/agent/run",
+      "version": "1.0.0",
+      "skills": ["yield-optimization", "cedefi-routing", "risk-assessment", "portfolio-analysis"],
+      "domains": ["defi", "mantle"]
+    },
+    {
+      "name": "mantis-chat",
+      "endpoint": "http://72.61.209.138:3001/api/chat",
+      "version": "1.0.0",
+      "skills": ["conversational-defi", "mantle-knowledge"],
+      "domains": ["defi", "mantle"]
+    }
+  ],
+  "x402Support": false,
+  "active": true,
+  "supportedTrust": ["ERC-8004"],
+  "supportedProtocols": ["MCP"],
+  "techStack": {
+    "ai": "Claude Sonnet 4.6 (extended thinking)",
+    "chain": "Mantle (Chain ID 5000)",
+    "mcp": "Mantle Agent Scaffold (19 tools)",
+    "dataFeeds": ["Aave V3", "Bybit Earn", "CIAN Protocol", "DefiLlama"]
+  }
+}

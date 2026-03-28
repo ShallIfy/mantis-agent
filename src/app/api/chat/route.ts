@@ -63,7 +63,13 @@ ${reserveLines}
 ${yieldLines}
 
 ### Token Prices
-${priceLines}`;
+${priceLines}
+
+### Bybit Earn OnChain Products
+${snapshot.bybit?.products?.length ? snapshot.bybit.products.map(p => `- ${p.coin}: ${p.estimateApr.toFixed(2)}% APR (${p.duration})${p.swapCoin ? ` → ${p.swapCoin}` : ''}`).join('\n') : 'No data available.'}
+
+### CIAN Yield Layer Vaults
+${snapshot.cian?.vaults?.length ? snapshot.cian.vaults.map(v => `- ${v.poolName}: APY ${v.apy.toFixed(2)}%${v.netApy !== null ? ` (Net: ${v.netApy.toFixed(2)}%)` : ''}, TVL $${(v.tvlUsd / 1e6).toFixed(1)}M`).join('\n') : 'No data available.'}`;
   } catch {
     liveDataContext = '\n\n(Live data temporarily unavailable. Answer based on general knowledge.)';
   }

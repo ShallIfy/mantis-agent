@@ -49,6 +49,39 @@ export interface DefiLlamaPool {
   apyReward: number | null;
 }
 
+export interface BybitEarnProduct {
+  productId: string;
+  coin: string;
+  category: string;
+  estimateApr: number; // parsed from "3.5%" string
+  minStakeAmount: string;
+  maxStakeAmount: string;
+  status: string;
+  duration: 'Flexible' | 'Fixed';
+  term: number; // days, 0 for flexible
+  swapCoin: string; // what you receive (e.g. "USDE", "METH")
+  redeemProcessingMinute: number;
+}
+
+export interface CianVault {
+  poolName: string;
+  poolAddress: string;
+  poolType: string;
+  apy: number;
+  apy7d: number;
+  netApy: number | null;
+  tvlUsd: number;
+  netTvlUsd: number;
+  depositCapacity: number | null;
+  minDeposit: number | null;
+  minWithdraw: number | null;
+  feePerformance: number | null;
+  feeExit: number | null;
+  // On-chain ERC4626 data (optional)
+  totalAssets: string | null;
+  totalSupply: string | null;
+}
+
 export interface WalletBalance {
   symbol: string;
   address: string;
@@ -74,6 +107,16 @@ export interface StateSnapshot {
     mantlePools: DefiLlamaPool[];
     topByAPY: DefiLlamaPool[];
   };
+  bybit: {
+    products: BybitEarnProduct[];
+  };
+  cian: {
+    vaults: CianVault[];
+  };
+  mcp: {
+    lendingMarkets: { protocol: string; asset: string; supplyApy: number; borrowApy: number; [key: string]: unknown }[];
+    chainStatus: { blockNumber: number; gasPrice: string; [key: string]: unknown } | null;
+  };
   prices: TokenPrice[];
   metadata: {
     collectionTimeMs: number;
@@ -88,7 +131,7 @@ export interface AgentAction {
   token_from: string | null;
   token_to: string | null;
   amount: string | null;
-  protocol: 'aave' | 'merchant_moe' | 'none';
+  protocol: 'aave' | 'merchant_moe' | 'bybit_earn' | 'cian' | 'lendle' | 'none' | string;
   expected_apy_change: number | null;
   gas_estimate_usd: number | null;
 }
