@@ -1,7 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Shield, DollarSign, TrendingUp, AlertTriangle } from 'lucide-react';
+import { Shield, DollarSign, TrendingUp, AlertTriangle, Wallet } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import { cn } from '@/lib/utils';
 
 interface SnapshotData {
   wallet: {
@@ -24,6 +27,59 @@ interface SnapshotData {
     }>;
   };
 }
+
+function formatUSD(n: number): string {
+  if (n >= 1e6) return `$${(n / 1e6).toFixed(2)}M`;
+  if (n >= 1e3) return `$${(n / 1e3).toFixed(1)}K`;
+  return `$${n.toFixed(2)}`;
+}
+
+function HealthFactorGauge({ value }: { value: number | null }) {
+  if (value === null || value === Infinity) {
+    return (
+      <div className="flex items-center gap-3">
+        <span className="stat-value text-muted-foreground">{value === null ? 'N/A' : '∞'}</span>
+      </div>
+    );
+  }
+
+  // Map HF 0-3 to 0-100% position on gauge
+  const pct = Math.min(Math.max((value / 3) * 100, 0), 100);
+  const color = value > 1.5 ? 'text-primary' : value > 1.3 ? 'text-yellow-400' : 'text-destructive';
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-baseline gap-2">
+        <span className={cn('text-2xl font-bold tabular-nums tracking-tight', color)}>
+          {value.toFixed(2)}
+        </span>
+        <Badge variant="outline" className={cn(
+          'text-[0.6rem]',
+          value > 1.5 && 'border-primary/20 bg-primary/8 text-primary',
+          value <= 1.5 && value > 1.3 && 'border-yellow-500/20 bg-yellow-500/8 text-yellow-400',
+          value <= 1.3 && 'border-destructive/20 bg-destructive/8 text-destructive',
+        )}>
+          {value > 1.5 ? 'Safe' : value > 1.3 ? 'Warning' : 'Danger'}
+        </Badge>
+      </div>
+      <div className="hf-gauge">
+        <div className="hf-gauge-marker" style={{ left: `calc(${pct}% - 2px)` }} />
+      </div>
+    </div>
+  );
+}
+
+const TOKEN_COLORS: Record<string, string> = {
+  MNT: '#00D26E',
+  WETH: '#627eea',
+  ETH: '#627eea',
+  USDC: '#2775ca',
+  USDT: '#50af95',
+  'USDT0': '#50af95',
+  wrsETH: '#00cfbe',
+  mETH: '#9b59b6',
+  WMNT: '#00D26E',
+};
 
 export default function PortfolioView() {
   const [data, setData] = useState<SnapshotData | null>(null);
@@ -50,9 +106,15 @@ export default function PortfolioView() {
 
   if (loading) {
     return (
-      <div className="mantis-card animate-pulse">
-        <div className="h-4 bg-[var(--card-border)] rounded w-1/3 mb-4" />
-        <div className="h-8 bg-[var(--card-border)] rounded w-1/2" />
+      <div className="mantis-card-premium mantis-glow">
+        <div className="space-y-4">
+          <div className="skeleton h-4 w-24" />
+          <div className="skeleton h-10 w-40" />
+          <div className="grid grid-cols-2 gap-3">
+            <div className="skeleton h-20 rounded-2xl" />
+            <div className="skeleton h-20 rounded-2xl" />
+          </div>
+        </div>
       </div>
     );
   }
@@ -60,90 +122,122 @@ export default function PortfolioView() {
   if (!data) return null;
 
   const hf = data.aave.account.healthFactor;
-  const hfColor = hf === null || hf === Infinity ? 'text-gray-400'
-    : hf > 1.5 ? 'text-mantis'
-    : hf > 1.3 ? 'text-yellow-400'
-    : 'text-red-400';
+  const activeBalances = data.wallet.balances.filter(b => b.valueUSD > 0.01);
 
   return (
-    <div className="mantis-card">
-      <h2 className="text-sm font-medium text-gray-400 mb-3">Portfolio Overview</h2>
-
-      <div className="grid grid-cols-2 gap-4 mb-4">
-        <div>
-          <div className="flex items-center gap-1.5 text-xs text-gray-500 mb-1">
-            <DollarSign className="w-3 h-3" /> Total Value
+    <div className="mantis-card-premium mantis-glow space-y-5">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center">
+            <Wallet className="w-4 h-4 text-primary" />
           </div>
-          <div className="text-2xl font-bold">${data.wallet.totalValueUSD.toFixed(2)}</div>
+          <span className="section-header">Portfolio</span>
         </div>
-        <div>
-          <div className="flex items-center gap-1.5 text-xs text-gray-500 mb-1">
-            <Shield className="w-3 h-3" /> Health Factor
-          </div>
-          <div className={`text-2xl font-bold ${hfColor}`}>
-            {hf === null ? 'N/A' : hf === Infinity ? '∞' : hf.toFixed(2)}
-          </div>
-        </div>
+        <span className="text-[10px] text-muted-foreground font-mono px-2.5 py-1 rounded-lg bg-muted/50">
+          {data.wallet.address.slice(0, 6)}...{data.wallet.address.slice(-4)}
+        </span>
       </div>
 
-      {data.aave.account.totalCollateralUSD > 0 && (
-        <div className="grid grid-cols-2 gap-4 mb-4 text-sm">
-          <div>
-            <span className="text-gray-500">Collateral: </span>
-            <span className="text-mantis">${data.aave.account.totalCollateralUSD.toFixed(2)}</span>
-          </div>
-          <div>
-            <span className="text-gray-500">Debt: </span>
-            <span className="text-red-400">${data.aave.account.totalDebtUSD.toFixed(2)}</span>
-          </div>
+      {/* Hero Stat: Total Value */}
+      <div>
+        <div className="stat-label flex items-center gap-1 mb-2">
+          <DollarSign className="w-3 h-3" /> Total Value
         </div>
-      )}
+        <div className="stat-value-xl">{formatUSD(data.wallet.totalValueUSD)}</div>
+      </div>
 
-      {data.aave.positions.length > 0 && (
-        <div className="border-t border-[var(--card-border)] pt-3 mt-3">
-          <h3 className="text-xs text-gray-500 mb-2 flex items-center gap-1">
-            <TrendingUp className="w-3 h-3" /> Active Positions
-          </h3>
-          <div className="space-y-2">
-            {data.aave.positions.map(p => (
-              <div key={p.symbol} className="flex justify-between text-sm">
-                <span>{p.symbol}</span>
-                <div className="text-right">
-                  <span className="text-mantis">${p.suppliedUSD.toFixed(2)}</span>
-                  {p.borrowedUSD > 0 && (
-                    <span className="text-red-400 ml-2">-${p.borrowedUSD.toFixed(2)}</span>
-                  )}
-                </div>
+      {/* Stats Row */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="stat-card">
+          <div className="stat-label flex items-center gap-1 mb-2">
+            <Shield className="w-3 h-3" /> Health Factor
+          </div>
+          <HealthFactorGauge value={hf} />
+        </div>
+
+        {data.aave.account.totalCollateralUSD > 0 ? (
+          <div className="stat-card">
+            <div className="stat-label mb-2">Positions</div>
+            <div className="space-y-1.5">
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Collateral</span>
+                <span className="font-semibold text-primary">{formatUSD(data.aave.account.totalCollateralUSD)}</span>
               </div>
-            ))}
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Debt</span>
+                <span className="font-semibold text-destructive">{formatUSD(data.aave.account.totalDebtUSD)}</span>
+              </div>
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="stat-card flex flex-col items-center justify-center text-center">
+            <AlertTriangle className="w-5 h-5 text-yellow-500/50 mb-1.5" />
+            <span className="text-xs text-muted-foreground">No active DeFi positions</span>
+          </div>
+        )}
+      </div>
+
+      {/* Active Positions */}
+      {data.aave.positions.length > 0 && (
+        <>
+          <Separator className="bg-border/50" />
+          <div>
+            <h3 className="section-header flex items-center gap-1.5 mb-3">
+              <TrendingUp className="w-3 h-3" /> Active Positions
+            </h3>
+            <div className="space-y-1">
+              {data.aave.positions.map(p => (
+                <div key={p.symbol} className="flex justify-between items-center text-sm data-row rounded-lg px-3 py-2">
+                  <div className="flex items-center gap-2.5">
+                    <div
+                      className="w-6 h-6 rounded-full flex items-center justify-center text-[0.6rem] font-bold text-black"
+                      style={{ background: TOKEN_COLORS[p.symbol] || '#6b7c72' }}
+                    >
+                      {p.symbol.charAt(0)}
+                    </div>
+                    <span className="font-medium">{p.symbol}</span>
+                  </div>
+                  <div className="text-right flex items-center gap-3">
+                    <span className="text-primary font-semibold tabular-nums">{formatUSD(p.suppliedUSD)}</span>
+                    {p.borrowedUSD > 0 && (
+                      <span className="text-destructive text-xs tabular-nums">-{formatUSD(p.borrowedUSD)}</span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </>
       )}
 
-      {data.aave.positions.length === 0 && (
-        <div className="border-t border-[var(--card-border)] pt-3 mt-3 text-sm text-gray-500 flex items-center gap-1.5">
-          <AlertTriangle className="w-3.5 h-3.5" />
-          No active Aave positions. Fund wallet to start.
-        </div>
-      )}
-
-      {/* Wallet balances */}
-      {data.wallet.balances.filter(b => b.valueUSD > 0.01).length > 0 && (
-        <div className="border-t border-[var(--card-border)] pt-3 mt-3">
-          <h3 className="text-xs text-gray-500 mb-2">Wallet Balances</h3>
-          <div className="space-y-1">
-            {data.wallet.balances
-              .filter(b => b.valueUSD > 0.01)
-              .map(b => (
-                <div key={b.symbol} className="flex justify-between text-sm">
-                  <span>{b.symbol}</span>
-                  <span className="text-gray-400">
-                    {parseFloat(b.formatted).toFixed(4)} (${b.valueUSD.toFixed(2)})
+      {/* Wallet Balances */}
+      {activeBalances.length > 0 && (
+        <>
+          <Separator className="bg-border/50" />
+          <div>
+            <h3 className="section-header mb-3">Wallet Balances</h3>
+            <div className="space-y-0.5">
+              {activeBalances.map(b => (
+                <div key={b.symbol} className="flex justify-between items-center text-sm data-row rounded-lg px-3 py-1.5">
+                  <div className="flex items-center gap-2.5">
+                    <div
+                      className="w-5 h-5 rounded-full flex items-center justify-center text-[0.55rem] font-bold text-black"
+                      style={{ background: TOKEN_COLORS[b.symbol] || '#6b7c72' }}
+                    >
+                      {b.symbol.charAt(0)}
+                    </div>
+                    <span className="font-medium">{b.symbol}</span>
+                  </div>
+                  <span className="text-muted-foreground tabular-nums text-xs">
+                    {parseFloat(b.formatted).toLocaleString(undefined, { maximumFractionDigits: 4 })}
+                    <span className="text-muted-foreground/50 ml-1.5">({formatUSD(b.valueUSD)})</span>
                   </span>
                 </div>
               ))}
+            </div>
           </div>
-        </div>
+        </>
       )}
     </div>
   );

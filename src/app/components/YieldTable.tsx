@@ -1,49 +1,65 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { TrendingUp } from 'lucide-react';
+import { TrendingUp, Loader2 } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import {
+  Table, TableHeader, TableRow, TableHead, TableBody, TableCell,
+} from '@/components/ui/table';
+import { cn } from '@/lib/utils';
 
-interface Reserve {
-  symbol: string;
-  supplyAPY: number;
-  borrowAPY: number;
-  utilizationRate: number;
-  totalSupply: string;
+interface Reserve { symbol: string; supplyAPY: number; borrowAPY: number; utilizationRate: number; totalSupply: string; }
+interface Pool { project: string; symbol: string; apy: number; tvlUsd: number; }
+interface BybitProduct { productId: string; coin: string; estimateApr: number; duration: string; swapCoin: string; minStakeAmount: string; }
+interface CianVault { poolName: string; poolAddress: string; apy: number; netApy: number | null; tvlUsd: number; feePerformance: number | null; }
+
+function formatTVL(n: number): string {
+  if (n >= 1e9) return `$${(n / 1e9).toFixed(1)}B`;
+  if (n >= 1e6) return `$${(n / 1e6).toFixed(0)}M`;
+  if (n >= 1e3) return `$${(n / 1e3).toFixed(0)}K`;
+  return `$${n.toFixed(0)}`;
 }
 
-interface Pool {
-  project: string;
-  symbol: string;
-  apy: number;
-  tvlUsd: number;
+function APYCell({ value, isTop }: { value: number; isTop?: boolean }) {
+  const color = value >= 5 ? 'text-primary font-bold' : value >= 2 ? 'text-emerald-400/90' : 'text-muted-foreground';
+  return (
+    <span className={cn('tabular-nums', color, isTop && value >= 5 && 'apy-glow')}>
+      {value.toFixed(2)}%
+    </span>
+  );
 }
 
-interface BybitProduct {
-  productId: string;
-  coin: string;
-  estimateApr: number;
-  duration: string;
-  swapCoin: string;
-  minStakeAmount: string;
+function UtilBar({ value }: { value: number }) {
+  const clamped = Math.min(value, 100);
+  const barColor = clamped >= 85 ? 'bg-destructive/60' : clamped >= 60 ? 'bg-yellow-500/60' : 'bg-primary/50';
+  return (
+    <div className="flex items-center justify-end gap-2">
+      <div className="w-16 h-1.5 rounded-full bg-border overflow-hidden">
+        <div className={cn('h-full rounded-full transition-all duration-500', barColor)} style={{ width: `${clamped}%` }} />
+      </div>
+      <span className="text-muted-foreground tabular-nums text-xs w-8 text-right">{value.toFixed(0)}%</span>
+    </div>
+  );
 }
 
-interface CianVault {
-  poolName: string;
-  poolAddress: string;
-  apy: number;
-  netApy: number | null;
-  tvlUsd: number;
-  feePerformance: number | null;
+function EmptyState() {
+  return (
+    <TableRow>
+      <TableCell colSpan={4} className="py-10 text-center">
+        <Loader2 className="w-5 h-5 text-muted-foreground/40 mx-auto mb-2 animate-spin" />
+        <span className="text-sm text-muted-foreground">Loading...</span>
+      </TableCell>
+    </TableRow>
+  );
 }
-
-type TabType = 'aave' | 'bybit' | 'cian' | 'ecosystem';
 
 export default function YieldTable() {
   const [reserves, setReserves] = useState<Reserve[]>([]);
   const [pools, setPools] = useState<Pool[]>([]);
   const [bybitProducts, setBybitProducts] = useState<BybitProduct[]>([]);
   const [cianVaults, setCianVaults] = useState<CianVault[]>([]);
-  const [tab, setTab] = useState<TabType>('aave');
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const wallet = process.env.NEXT_PUBLIC_DEMO_WALLET || '0x0000000000000000000000000000000000000001';
@@ -54,148 +70,170 @@ export default function YieldTable() {
         setPools(data.yields?.topByAPY || []);
         setBybitProducts(data.bybit?.products || []);
         setCianVaults(data.cian?.vaults || []);
+        setLoading(false);
       })
-      .catch(() => {});
+      .catch(() => setLoading(false));
   }, []);
 
-  const tabs: { key: TabType; label: string }[] = [
-    { key: 'aave', label: 'Aave V3' },
-    { key: 'bybit', label: 'Bybit' },
-    { key: 'cian', label: 'CIAN' },
-    { key: 'ecosystem', label: 'All' },
-  ];
+  const counts = {
+    aave: reserves.filter(r => r.supplyAPY > 0 || parseFloat(r.totalSupply) > 0).length,
+    bybit: bybitProducts.length,
+    cian: cianVaults.length,
+    ecosystem: pools.length,
+  };
+
+  const sortedReserves = reserves
+    .filter(r => r.supplyAPY > 0 || parseFloat(r.totalSupply) > 0)
+    .sort((a, b) => b.supplyAPY - a.supplyAPY);
 
   return (
-    <div className="mantis-card">
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="text-sm font-medium text-gray-400 flex items-center gap-1.5">
-          <TrendingUp className="w-4 h-4" /> Yield Opportunities
-        </h2>
-        <div className="flex gap-1 text-xs">
-          {tabs.map(t => (
-            <button
-              key={t.key}
-              onClick={() => setTab(t.key)}
-              className={`px-2 py-1 rounded ${tab === t.key ? 'bg-[var(--mantis-green)] text-black font-medium' : 'text-gray-400'}`}
-            >
-              {t.label}
-            </button>
-          ))}
+    <div className="mantis-card-premium space-y-0">
+      {/* Header */}
+      <div className="flex items-center gap-2 mb-5">
+        <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center">
+          <TrendingUp className="w-4 h-4 text-primary" />
         </div>
+        <span className="section-header">Yield Opportunities</span>
       </div>
 
-      {tab === 'aave' && (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-gray-500 text-xs border-b border-[var(--card-border)]">
-                <th className="text-left py-2">Token</th>
-                <th className="text-right py-2">Supply APY</th>
-                <th className="text-right py-2">Borrow APY</th>
-                <th className="text-right py-2">Util %</th>
-              </tr>
-            </thead>
-            <tbody>
-              {reserves
-                .filter(r => r.supplyAPY > 0 || parseFloat(r.totalSupply) > 0)
-                .sort((a, b) => b.supplyAPY - a.supplyAPY)
-                .map(r => (
-                  <tr key={r.symbol} className="border-b border-[var(--card-border)] border-opacity-30">
-                    <td className="py-2 font-medium">{r.symbol}</td>
-                    <td className="py-2 text-right text-mantis">{r.supplyAPY.toFixed(2)}%</td>
-                    <td className="py-2 text-right text-red-400">{r.borrowAPY.toFixed(2)}%</td>
-                    <td className="py-2 text-right text-gray-400">{r.utilizationRate.toFixed(0)}%</td>
-                  </tr>
+      <Tabs defaultValue="aave">
+        <TabsList className="bg-muted/30 border border-border/50 p-1 mb-5 rounded-xl">
+          {[
+            { value: 'aave', label: 'Aave V3', count: counts.aave },
+            { value: 'bybit', label: 'Bybit', count: counts.bybit },
+            { value: 'cian', label: 'CIAN', count: counts.cian },
+            { value: 'ecosystem', label: 'All', count: counts.ecosystem },
+          ].map(tab => (
+            <TabsTrigger
+              key={tab.value}
+              value={tab.value}
+              className="text-xs rounded-lg data-[state=active]:bg-primary/12 data-[state=active]:text-primary data-[state=active]:shadow-none transition-all"
+            >
+              {tab.label}
+              {!loading && tab.count > 0 && (
+                <span className="ml-1.5 px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground text-[0.6rem] leading-none">
+                  {tab.count}
+                </span>
+              )}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+
+        <div className="overflow-x-auto -mx-1.5">
+          {/* Aave Tab */}
+          <TabsContent value="aave" className="mt-0">
+            <Table>
+              <TableHeader>
+                <TableRow className="border-border/30 hover:bg-transparent">
+                  <TableHead className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Token</TableHead>
+                  <TableHead className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground text-right">Supply APY</TableHead>
+                  <TableHead className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground text-right">Borrow APY</TableHead>
+                  <TableHead className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground text-right">Utilization</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {sortedReserves.map((r, i) => (
+                  <TableRow key={r.symbol} className={cn(
+                    'data-row border-border/20 transition-colors',
+                    i === 0 && r.supplyAPY >= 5 && 'border-l-2 border-l-primary/40',
+                  )}>
+                    <TableCell className="py-3 px-3 text-sm font-semibold">{r.symbol}</TableCell>
+                    <TableCell className="py-3 px-3 text-sm text-right"><APYCell value={r.supplyAPY} isTop={i === 0} /></TableCell>
+                    <TableCell className="py-3 px-3 text-sm text-right text-destructive/70 tabular-nums">{r.borrowAPY.toFixed(2)}%</TableCell>
+                    <TableCell className="py-3 px-3"><UtilBar value={r.utilizationRate} /></TableCell>
+                  </TableRow>
                 ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+                {sortedReserves.length === 0 && <EmptyState />}
+              </TableBody>
+            </Table>
+          </TabsContent>
 
-      {tab === 'bybit' && (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-gray-500 text-xs border-b border-[var(--card-border)]">
-                <th className="text-left py-2">Coin</th>
-                <th className="text-right py-2">APR</th>
-                <th className="text-left py-2">Type</th>
-                <th className="text-left py-2">Receive</th>
-              </tr>
-            </thead>
-            <tbody>
-              {bybitProducts.map(p => (
-                <tr key={p.productId} className="border-b border-[var(--card-border)] border-opacity-30">
-                  <td className="py-2 font-medium">{p.coin}</td>
-                  <td className="py-2 text-right text-mantis">{p.estimateApr.toFixed(2)}%</td>
-                  <td className="py-2 text-gray-400">{p.duration}</td>
-                  <td className="py-2 text-gray-400">{p.swapCoin || '—'}</td>
-                </tr>
-              ))}
-              {bybitProducts.length === 0 && (
-                <tr><td colSpan={4} className="py-4 text-center text-gray-500">Loading...</td></tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      )}
+          {/* Bybit Tab */}
+          <TabsContent value="bybit" className="mt-0">
+            <Table>
+              <TableHeader>
+                <TableRow className="border-border/30 hover:bg-transparent">
+                  <TableHead className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Coin</TableHead>
+                  <TableHead className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground text-right">APR</TableHead>
+                  <TableHead className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Type</TableHead>
+                  <TableHead className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Receive</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {bybitProducts.map((p, i) => (
+                  <TableRow key={p.productId} className={cn(
+                    'data-row border-border/20',
+                    i === 0 && 'border-l-2 border-l-primary/40',
+                  )}>
+                    <TableCell className="py-3 px-3 text-sm font-semibold">{p.coin}</TableCell>
+                    <TableCell className="py-3 px-3 text-sm text-right"><APYCell value={p.estimateApr} isTop={i === 0} /></TableCell>
+                    <TableCell className="py-3 px-3">
+                      <Badge variant="outline" className="border-primary/20 bg-primary/8 text-primary text-[0.6rem]">{p.duration}</Badge>
+                    </TableCell>
+                    <TableCell className="py-3 px-3 text-sm text-muted-foreground">{p.swapCoin || '—'}</TableCell>
+                  </TableRow>
+                ))}
+                {bybitProducts.length === 0 && <EmptyState />}
+              </TableBody>
+            </Table>
+          </TabsContent>
 
-      {tab === 'cian' && (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-gray-500 text-xs border-b border-[var(--card-border)]">
-                <th className="text-left py-2">Vault</th>
-                <th className="text-right py-2">APY</th>
-                <th className="text-right py-2">Net APY</th>
-                <th className="text-right py-2">TVL</th>
-              </tr>
-            </thead>
-            <tbody>
-              {cianVaults.map(v => (
-                <tr key={v.poolAddress} className="border-b border-[var(--card-border)] border-opacity-30">
-                  <td className="py-2 font-medium text-xs">{v.poolName}</td>
-                  <td className="py-2 text-right text-mantis">{v.apy.toFixed(2)}%</td>
-                  <td className="py-2 text-right text-yellow-400">{v.netApy !== null ? `${v.netApy.toFixed(2)}%` : '—'}</td>
-                  <td className="py-2 text-right text-gray-400">
-                    ${v.tvlUsd > 1e6 ? `${(v.tvlUsd / 1e6).toFixed(0)}M` : `${(v.tvlUsd / 1e3).toFixed(0)}K`}
-                  </td>
-                </tr>
-              ))}
-              {cianVaults.length === 0 && (
-                <tr><td colSpan={4} className="py-4 text-center text-gray-500">Loading...</td></tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      )}
+          {/* CIAN Tab */}
+          <TabsContent value="cian" className="mt-0">
+            <Table>
+              <TableHeader>
+                <TableRow className="border-border/30 hover:bg-transparent">
+                  <TableHead className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Vault</TableHead>
+                  <TableHead className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground text-right">APY</TableHead>
+                  <TableHead className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground text-right">Net APY</TableHead>
+                  <TableHead className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground text-right">TVL</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {cianVaults.map((v, i) => (
+                  <TableRow key={v.poolAddress} className={cn(
+                    'data-row border-border/20',
+                    i === 0 && 'border-l-2 border-l-primary/40',
+                  )}>
+                    <TableCell className="py-3 px-3 text-xs font-semibold">{v.poolName}</TableCell>
+                    <TableCell className="py-3 px-3 text-sm text-right"><APYCell value={v.apy} isTop={i === 0} /></TableCell>
+                    <TableCell className="py-3 px-3 text-sm text-right text-yellow-400/80 tabular-nums">{v.netApy !== null ? `${v.netApy.toFixed(2)}%` : '—'}</TableCell>
+                    <TableCell className="py-3 px-3 text-sm text-right text-muted-foreground">{formatTVL(v.tvlUsd)}</TableCell>
+                  </TableRow>
+                ))}
+                {cianVaults.length === 0 && <EmptyState />}
+              </TableBody>
+            </Table>
+          </TabsContent>
 
-      {tab === 'ecosystem' && (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-gray-500 text-xs border-b border-[var(--card-border)]">
-                <th className="text-left py-2">Protocol</th>
-                <th className="text-left py-2">Token</th>
-                <th className="text-right py-2">APY</th>
-                <th className="text-right py-2">TVL</th>
-              </tr>
-            </thead>
-            <tbody>
-              {pools.slice(0, 10).map((p, i) => (
-                <tr key={i} className="border-b border-[var(--card-border)] border-opacity-30">
-                  <td className="py-2 text-gray-400">{p.project}</td>
-                  <td className="py-2 font-medium">{p.symbol}</td>
-                  <td className="py-2 text-right text-mantis">{p.apy.toFixed(2)}%</td>
-                  <td className="py-2 text-right text-gray-400">
-                    ${p.tvlUsd > 1e6 ? `${(p.tvlUsd / 1e6).toFixed(1)}M` : `${(p.tvlUsd / 1e3).toFixed(0)}K`}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          {/* Ecosystem Tab */}
+          <TabsContent value="ecosystem" className="mt-0">
+            <Table>
+              <TableHeader>
+                <TableRow className="border-border/30 hover:bg-transparent">
+                  <TableHead className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Protocol</TableHead>
+                  <TableHead className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Token</TableHead>
+                  <TableHead className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground text-right">APY</TableHead>
+                  <TableHead className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground text-right">TVL</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {pools.slice(0, 12).map((p, i) => (
+                  <TableRow key={i} className={cn(
+                    'data-row border-border/20',
+                    i === 0 && 'border-l-2 border-l-primary/40',
+                  )}>
+                    <TableCell className="py-3 px-3 text-sm text-muted-foreground">{p.project}</TableCell>
+                    <TableCell className="py-3 px-3 text-sm font-semibold">{p.symbol}</TableCell>
+                    <TableCell className="py-3 px-3 text-sm text-right"><APYCell value={p.apy} isTop={i === 0} /></TableCell>
+                    <TableCell className="py-3 px-3 text-sm text-right text-muted-foreground">{formatTVL(p.tvlUsd)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TabsContent>
         </div>
-      )}
+      </Tabs>
     </div>
   );
 }

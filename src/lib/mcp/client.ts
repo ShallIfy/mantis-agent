@@ -140,6 +140,12 @@ export async function mcpListTools() {
   return client.listTools();
 }
 
+// Public tool invocation (used by MCP Explorer page)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function mcpCallTool(name: string, args: Record<string, unknown>): Promise<any> {
+  return callTool(name, args);
+}
+
 // Close connection
 export async function mcpClose() {
   if (mcpClient) {
