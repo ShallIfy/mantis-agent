@@ -68,14 +68,14 @@ const ERC4626_USER_ABI = [
   },
 ] as const;
 
-interface CianUserPosition {
+export interface CianUserPosition {
   vaultSymbol: string;
   vaultAddress: string;
   assetsFormatted: number;
   decimals: number;
 }
 
-async function getCianUserPositions(wallet: string): Promise<CianUserPosition[]> {
+export async function getCianUserPositions(wallet: string): Promise<CianUserPosition[]> {
   const positions: CianUserPosition[] = [];
   const vaultEntries = Object.entries(CIAN_VAULTS) as [string, string][];
 

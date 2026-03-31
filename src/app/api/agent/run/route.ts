@@ -1,11 +1,15 @@
 import { NextResponse } from 'next/server';
 import { runAgentCycle } from '@/lib/agent/loop';
+import type { ExecutionMode } from '@/lib/agent/executor';
 
 export const maxDuration = 60; // Allow up to 60s for Claude API call
 
-export async function POST() {
-  const wallet = process.env.NEXT_PUBLIC_DEMO_WALLET || '0x0000000000000000000000000000000000000001';
-  const mode = (process.env.EXECUTION_MODE || 'simulate') as 'simulate' | 'execute';
+export async function POST(req: Request) {
+  const body = await req.json().catch(() => ({}));
+  const wallet = body.walletAddress
+    || process.env.NEXT_PUBLIC_DEMO_WALLET
+    || '0x0000000000000000000000000000000000000001';
+  const mode = (body.mode || 'propose') as ExecutionMode;
 
   try {
     const result = await runAgentCycle(wallet, undefined, mode);

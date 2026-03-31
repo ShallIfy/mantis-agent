@@ -8,8 +8,7 @@ module.exports = {
       ANTHROPIC_API_KEY: 'sk-WKtaVoT2H2jvhb5Mi61PJeAIsDwEvBGgEUotNhBFCURtU',
       ANTHROPIC_BASE_URL: 'http://localhost:8317/v1',
       MANTLE_RPC_URL: 'https://rpc.mantle.xyz',
-      NEXT_PUBLIC_DEMO_WALLET: '0x0000000000000000000000000000000000000000',
-      EXECUTION_MODE: 'simulate',
+      EXECUTION_MODE: 'execute',
     },
   }],
 };

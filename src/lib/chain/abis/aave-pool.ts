@@ -38,4 +38,39 @@ export const aavePoolAbi = [
     ],
     outputs: [{ name: '', type: 'uint256' }],
   },
+  {
+    name: 'borrow',
+    type: 'function',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'asset', type: 'address' },
+      { name: 'amount', type: 'uint256' },
+      { name: 'interestRateMode', type: 'uint256' },
+      { name: 'referralCode', type: 'uint16' },
+      { name: 'onBehalfOf', type: 'address' },
+    ],
+    outputs: [],
+  },
+  {
+    name: 'repay',
+    type: 'function',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'asset', type: 'address' },
+      { name: 'amount', type: 'uint256' },
+      { name: 'interestRateMode', type: 'uint256' },
+      { name: 'onBehalfOf', type: 'address' },
+    ],
+    outputs: [{ name: '', type: 'uint256' }],
+  },
+  {
+    name: 'setUserUseReserveAsCollateral',
+    type: 'function',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'asset', type: 'address' },
+      { name: 'useAsCollateral', type: 'bool' },
+    ],
+    outputs: [],
+  },
 ] as const;

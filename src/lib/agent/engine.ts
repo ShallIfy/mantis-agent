@@ -1,5 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
-import { MANTIS_SYSTEM_PROMPT } from './prompts';
+import { getAgentSystemPrompt } from './prompts';
 import type { StateSnapshot, AgentDecision } from '@/lib/types';
 
 /**
@@ -231,7 +231,7 @@ export async function runReasoningEngine(
       budget_tokens: 10000,
     },
     temperature: 1, // required when thinking is enabled
-    system: MANTIS_SYSTEM_PROMPT,
+    system: getAgentSystemPrompt(),
     messages: [{ role: 'user', content: userMessage }],
   });
 

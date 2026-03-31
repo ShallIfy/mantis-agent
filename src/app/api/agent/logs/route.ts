@@ -9,6 +9,7 @@ export async function GET(req: NextRequest) {
     timestamp: entry.timestamp,
     decision: entry.decision,
     executionResults: entry.executionResults,
+    proposedTransactions: entry.proposedTransactions,
     phases: entry.phases,
     snapshotSummary: {
       blockNumber: entry.snapshot.blockNumber,

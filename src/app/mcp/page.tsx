@@ -4,7 +4,6 @@ import { useEffect, useState, useMemo } from 'react';
 import Header from '@/app/components/Header';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import {
   Play, ChevronDown, ChevronRight, Network, Loader2, CheckCircle, XCircle,
@@ -35,30 +34,50 @@ interface ChainHealth {
 // ═══════════════════════════════════════════════
 
 const TOOL_CATEGORIES: Record<string, string[]> = {
-  'Network Primer': ['mantle_getChainInfo', 'mantle_getChainStatus'],
-  'Portfolio Analyst': ['mantle_getBalance', 'mantle_getTokenBalances', 'mantle_getAllowances', 'mantle_getTokenPrices'],
-  'DeFi Operator': ['mantle_getSwapQuote', 'mantle_getPoolLiquidity', 'mantle_getPoolOpportunities', 'mantle_getLendingMarkets', 'mantle_getProtocolTvl'],
-  'Registry Navigator': ['mantle_resolveAddress', 'mantle_validateAddress', 'mantle_resolveToken', 'mantle_getTokenInfo'],
-  'Data Indexer': ['mantle_querySubgraph', 'mantle_queryIndexerSql'],
-  'Readonly Debugger': ['mantle_checkRpcHealth', 'mantle_probeEndpoint'],
+  // With logos first
+  'Aave V3': ['mantle_getLendingMarkets'],
+  'DEX': ['mantle_getSwapQuote', 'mantle_getPoolLiquidity', 'mantle_getPoolOpportunities', 'mantle_getProtocolTvl'],
+  'Bybit Earn': ['mantis_bybit_products', 'mantis_bybit_best_rate'],
+  'CIAN': ['mantis_cian_vaults', 'mantis_cian_user_position'],
+  'Mantle': ['mantle_getChainInfo', 'mantle_getChainStatus', 'mantle_checkRpcHealth', 'mantle_probeEndpoint'],
+  // Without logos last
+  'Wallet': ['mantle_getBalance', 'mantle_getTokenBalances', 'mantle_getAllowances', 'mantis_yield_projection'],
+  'Tokens': ['mantle_getTokenInfo', 'mantle_getTokenPrices', 'mantle_resolveToken', 'mantle_resolveAddress', 'mantle_validateAddress'],
+  'Indexer': ['mantle_querySubgraph', 'mantle_queryIndexerSql'],
+};
+
+// Protocol logos (null = use lucide icon fallback, array = pool pair)
+const CATEGORY_LOGOS: Record<string, string | string[] | null> = {
+  'Aave V3': '/logos/aave.svg',
+  'DEX': ['/logos/agni.png', '/logos/merchant-moe.png'],
+  'Bybit Earn': '/logos/bybit.png',
+  'CIAN': '/logos/cian.png',
+  'Wallet': null,
+  'Tokens': null,
+  'Mantle': '/logos/mantle.png',
+  'Indexer': null,
 };
 
 const CATEGORY_ICONS: Record<string, typeof Network> = {
-  'Network Primer': Layers,
-  'Portfolio Analyst': Wallet,
-  'DeFi Operator': TrendingUp,
-  'Registry Navigator': BookOpen,
-  'Data Indexer': Server,
-  'Readonly Debugger': Activity,
+  'Aave V3': TrendingUp,
+  'DEX': Activity,
+  'Bybit Earn': Coins,
+  'CIAN': Layers,
+  'Wallet': Wallet,
+  'Tokens': BookOpen,
+  'Mantle': Network,
+  'Indexer': Server,
 };
 
 const CATEGORY_STYLES: Record<string, string> = {
-  'Network Primer': 'bg-cyan-500/8 text-cyan-400 border-cyan-500/20',
-  'Portfolio Analyst': 'bg-emerald-500/8 text-emerald-400 border-emerald-500/20',
-  'DeFi Operator': 'bg-amber-500/8 text-amber-400 border-amber-500/20',
-  'Registry Navigator': 'bg-purple-500/8 text-purple-400 border-purple-500/20',
-  'Data Indexer': 'bg-blue-500/8 text-blue-400 border-blue-500/20',
-  'Readonly Debugger': 'bg-rose-500/8 text-rose-400 border-rose-500/20',
+  'Aave V3': 'bg-blue-500/8 text-blue-400 border-blue-500/20',
+  'DEX': 'bg-amber-500/8 text-amber-400 border-amber-500/20',
+  'Bybit Earn': 'bg-yellow-500/8 text-yellow-400 border-yellow-500/20',
+  'CIAN': 'bg-teal-500/8 text-teal-400 border-teal-500/20',
+  'Wallet': 'bg-emerald-500/8 text-emerald-400 border-emerald-500/20',
+  'Tokens': 'bg-purple-500/8 text-purple-400 border-purple-500/20',
+  'Mantle': 'bg-cyan-500/8 text-cyan-400 border-cyan-500/20',
+  'Indexer': 'bg-rose-500/8 text-rose-400 border-rose-500/20',
 };
 
 const QUICK_ACTIONS = [
@@ -112,9 +131,10 @@ function ToolCard({ tool }: { tool: McpTool }) {
 
   const category = getCategoryForTool(tool.name);
   const CatIcon = CATEGORY_ICONS[category] || Network;
+  const catLogo = CATEGORY_LOGOS[category];
   const properties = tool.inputSchema?.properties || {};
   const required = tool.inputSchema?.required || [];
-  const shortName = tool.name.replace('mantle_', '');
+  const shortName = tool.name.replace('mantle_', '').replace('mantis_', '');
 
   const invoke = async () => {
     setRunning(true);
@@ -146,12 +166,21 @@ function ToolCard({ tool }: { tool: McpTool }) {
     )}>
       {/* Header */}
       <button onClick={() => setExpanded(!expanded)} className="w-full flex items-center gap-3 text-left">
-        <div className={cn(
-          'w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors',
-          expanded ? 'bg-primary/15' : 'bg-muted/50'
-        )}>
-          <CatIcon className={cn('w-4 h-4', expanded ? 'text-primary' : 'text-muted-foreground')} />
-        </div>
+        {Array.isArray(catLogo) ? (
+          <div className="relative w-14 h-8 flex-shrink-0">
+            <img src={catLogo[0]} alt="" className="absolute left-0 top-0 w-8 h-8 object-contain z-10" />
+            <img src={catLogo[1]} alt="" className="absolute left-6 top-0 w-8 h-8 object-contain" />
+          </div>
+        ) : catLogo ? (
+          <img src={catLogo as string} alt={category} className="w-8 h-8 object-contain flex-shrink-0" />
+        ) : (
+          <div className={cn(
+            'w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors',
+            expanded ? 'bg-primary/15' : 'bg-muted/50'
+          )}>
+            <CatIcon className={cn('w-4 h-4', expanded ? 'text-primary' : 'text-muted-foreground')} />
+          </div>
+        )}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-sm font-semibold">{shortName}</span>
@@ -249,13 +278,13 @@ function ToolCard({ tool }: { tool: McpTool }) {
                   </span>
                 )}
               </div>
-              <ScrollArea className="max-h-[300px]">
+              <div className="max-h-[400px] overflow-y-auto rounded-xl">
                 {error ? (
                   <pre className="text-[11px] font-mono p-3 rounded-xl bg-destructive/5 border border-destructive/20 text-destructive/80 whitespace-pre-wrap">{error}</pre>
                 ) : (
                   <SyntaxJSON data={result} />
                 )}
-              </ScrollArea>
+              </div>
             </div>
           )}
         </div>
@@ -314,9 +343,9 @@ function QuickAction({ label, tool, args, icon: Icon }: { label: string; tool: s
         )}
       </button>
       {show && result && (
-        <ScrollArea className="max-h-[200px]">
+        <div className="max-h-[200px] overflow-y-auto rounded-xl">
           <SyntaxJSON data={result} />
-        </ScrollArea>
+        </div>
       )}
       {error && (
         <pre className="text-[10px] font-mono p-2 rounded-lg bg-destructive/5 border border-destructive/20 text-destructive/70">{error}</pre>
@@ -378,17 +407,17 @@ export default function McpPage() {
   return (
     <>
       <Header />
-      <main className="flex-1 max-w-7xl mx-auto w-full px-6 py-8">
+      <main className="flex-1 max-w-7xl mx-auto w-full px-3 sm:px-6 py-4 sm:py-8">
         {/* Hero */}
-        <div className="hero-card mb-6 animate-in">
+        <div className="hero-card mb-4 sm:mb-6 animate-in">
           <div className="relative z-10">
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-between mb-3 sm:mb-4">
               <div>
-                <h1 className="text-3xl font-extrabold tracking-tight">
+                <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
                   <span className="gradient-text-hero">MCP Explorer</span>
                 </h1>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Interactive playground for Mantle Agent Scaffold tools
+                  Interactive playground — 24 tools across 8 platforms
                 </p>
               </div>
               <Badge variant="outline" className={cn(
@@ -424,13 +453,13 @@ export default function McpPage() {
         </div>
 
         {/* Stats Row */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6 animate-in stagger-1">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4 mb-4 sm:mb-6 animate-in stagger-1">
           <div className="stat-card">
             <div className="stat-label flex items-center gap-1 mb-1"><Network className="w-3 h-3" /> Tools</div>
             <div className="stat-value text-primary">{tools.length}</div>
           </div>
           <div className="stat-card">
-            <div className="stat-label flex items-center gap-1 mb-1"><Layers className="w-3 h-3" /> Skills</div>
+            <div className="stat-label flex items-center gap-1 mb-1"><Layers className="w-3 h-3" /> Platforms</div>
             <div className="stat-value">{categories.length}</div>
           </div>
           <div className="stat-card">
@@ -454,7 +483,7 @@ export default function McpPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 sm:gap-6">
           {/* Sidebar: Quick Actions */}
           <div className="lg:col-span-3 animate-in stagger-2">
             <h2 className="section-header flex items-center gap-2 mb-3">
@@ -531,6 +560,7 @@ export default function McpPage() {
                   {categories.map(cat => {
                     const count = getToolsForCategory(cat).length;
                     const CatIcon = CATEGORY_ICONS[cat] || Network;
+                    const logo = CATEGORY_LOGOS[cat];
                     return (
                       <TabsTrigger
                         key={cat}
@@ -538,7 +568,16 @@ export default function McpPage() {
                         className={cn('text-xs rounded-lg data-[state=active]:bg-primary/12 data-[state=active]:text-primary', count === 0 && 'opacity-30')}
                         disabled={count === 0}
                       >
-                        <CatIcon className="w-3 h-3 mr-1" />
+                        {Array.isArray(logo) ? (
+                          <span className="relative w-7 h-4 mr-1 inline-block">
+                            <img src={logo[0]} alt="" className="absolute left-0 top-0 w-4 h-4 object-contain z-10" />
+                            <img src={logo[1]} alt="" className="absolute left-3 top-0 w-4 h-4 object-contain" />
+                          </span>
+                        ) : logo ? (
+                          <img src={logo as string} alt={cat} className="w-4 h-4 mr-1 object-contain" />
+                        ) : (
+                          <CatIcon className="w-3.5 h-3.5 mr-1" />
+                        )}
                         {cat}
                         <span className="ml-1 text-[0.6rem] text-muted-foreground/50">{count}</span>
                       </TabsTrigger>

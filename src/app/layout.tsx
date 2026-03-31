@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
+import FloatingChat from "@/app/components/FloatingChat";
+import Footer from "@/app/components/Footer";
+import Providers from "@/app/components/Providers";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -29,8 +32,12 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased dark`}
     >
       <body className="min-h-full flex flex-col bg-background text-foreground">
-        {children}
-        <Toaster />
+        <Providers>
+          {children}
+          <Footer />
+          <FloatingChat />
+          <Toaster />
+        </Providers>
       </body>
     </html>
   );

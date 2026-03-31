@@ -51,6 +51,9 @@ export const MERCHANT_MOE = {
   FACTORY: '0x5bef015ca9424a7c07b68490616a4c1f094bedec',
 } as const;
 
+// Tokens with LTV > 0 on Aave V3 Mantle — can be used as collateral
+export const COLLATERAL_TOKENS: ReadonlySet<string> = new Set(['WETH', 'WMNT']);
+
 export type TokenSymbol = keyof typeof TOKENS;
 
 export function getTokenAddress(symbol: TokenSymbol): `0x${string}` {

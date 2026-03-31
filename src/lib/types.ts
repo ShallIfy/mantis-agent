@@ -127,7 +127,7 @@ export interface StateSnapshot {
 // Agent Types
 
 export interface AgentAction {
-  type: 'supply' | 'withdraw' | 'swap' | 'none';
+  type: 'supply' | 'withdraw' | 'borrow' | 'repay' | 'swap' | 'wrap' | 'unwrap' | 'none';
   token_from: string | null;
   token_to: string | null;
   amount: string | null;
@@ -168,12 +168,25 @@ export interface ExecutionResult {
   timestamp: number;
 }
 
+export interface ProposedTransaction {
+  id: string;
+  label: string;
+  to: string;
+  data: string;
+  value: string;
+  chainId: number;
+  action: AgentAction;
+  step: number;
+  totalSteps: number;
+}
+
 export interface AgentCycleResult {
   cycleId: string;
   timestamp: number;
   snapshot: StateSnapshot;
   decision: AgentDecision;
   executionResults: ExecutionResult[];
+  proposedTransactions?: ProposedTransaction[];
   phases: {
     observe: { durationMs: number; errors: string[] };
     decide: { durationMs: number };

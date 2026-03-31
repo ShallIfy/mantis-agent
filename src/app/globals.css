@@ -319,6 +319,32 @@ body {
   color: var(--muted-foreground);
 }
 
+/* ── Brand wordmark ── */
+.brand-wordmark {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  color: rgba(255, 255, 255, 0.92);
+  text-shadow:
+    0 0 30px rgba(0, 210, 110, 0.12),
+    0 0 60px rgba(0, 210, 110, 0.06);
+  line-height: 1;
+}
+.brand-badge {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  color: rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 4px;
+  padding: 2px 6px;
+  line-height: 1;
+  margin-left: -2px;
+  vertical-align: middle;
+}
+
 .text-mantis { color: var(--mantis-green); }
 .bg-mantis { background-color: var(--mantis-green); }
 
@@ -375,26 +401,11 @@ body {
    ═══════════════════════════════════════════════ */
 
 .data-row {
-  transition: all 0.15s ease;
-  position: relative;
-}
-.data-row::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 2px;
-  border-radius: 1px;
-  background: var(--mantis-green);
-  opacity: 0;
-  transition: opacity 0.2s ease;
+  transition: background 0.15s ease, box-shadow 0.2s ease;
 }
 .data-row:hover {
   background: rgba(0, 210, 110, 0.04);
-}
-.data-row:hover::before {
-  opacity: 1;
+  box-shadow: inset 2px 0 0 var(--mantis-green);
 }
 
 /* APY glow for high values */
@@ -541,15 +552,40 @@ body {
 }
 
 /* ═══════════════════════════════════════════════
+   TERMINAL
+   ═══════════════════════════════════════════════ */
+
+@keyframes terminal-slide-in {
+  from { opacity: 0; transform: translateX(-6px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.terminal-line {
+  animation: terminal-slide-in 0.2s ease-out both;
+}
+
+.terminal-body {
+  background:
+    radial-gradient(ellipse 70% 35% at 50% 0%, rgba(0, 210, 110, 0.025), transparent),
+    radial-gradient(ellipse 40% 40% at 100% 100%, rgba(0, 210, 110, 0.01), transparent);
+}
+
+.terminal-cursor {
+  animation: pulse-glow 2s ease-in-out infinite;
+  box-shadow: 0 0 6px rgba(0, 210, 110, 0.4), 0 0 12px rgba(0, 210, 110, 0.15);
+}
+
+/* ═══════════════════════════════════════════════
    BOUNCE DOTS (typing indicator)
    ═══════════════════════════════════════════════ */
 
 .typing-dots span {
   display: inline-block;
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
   border-radius: 50%;
   background: var(--mantis-green);
+  opacity: 0.4;
   animation: bounce-dot 1.4s infinite ease-in-out both;
 }
 .typing-dots span:nth-child(1) { animation-delay: -0.32s; }
@@ -622,4 +658,145 @@ body {
   height: 300px;
   background: radial-gradient(circle, rgba(124, 58, 237, 0.04), transparent 60%);
   pointer-events: none;
+}
+
+/* ═══════════════════════════════════════════════
+   STATS BAR
+   ═══════════════════════════════════════════════ */
+
+.stat-card-primary {
+  background: linear-gradient(135deg, rgba(0, 210, 110, 0.08), var(--surface-elevated));
+  border-color: rgba(0, 210, 110, 0.18);
+}
+.stat-card-primary:hover {
+  border-color: rgba(0, 210, 110, 0.3);
+}
+
+/* ═══════════════════════════════════════════════
+   YIELD TOP ROW HIGHLIGHT
+   ═══════════════════════════════════════════════ */
+
+.yield-top-row {
+  background: linear-gradient(90deg, rgba(0, 210, 110, 0.05), transparent 70%) !important;
+  box-shadow: inset 2px 0 0 rgba(0, 210, 110, 0.4);
+}
+
+/* ═══════════════════════════════════════════════
+   CONFIDENCE BAR (Agent Log)
+   ═══════════════════════════════════════════════ */
+
+.confidence-bar {
+  height: 3px;
+  border-radius: 2px;
+  background: var(--card-border);
+  overflow: hidden;
+  min-width: 60px;
+}
+.confidence-bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  background: var(--mantis-green);
+  transition: width 0.5s ease;
+}
+
+/* ═══════════════════════════════════════════════
+   DASHBOARD FOOTER
+   ═══════════════════════════════════════════════ */
+
+.dashboard-footer {
+  border-top: 1px solid var(--card-border);
+  padding: 1rem 0;
+  margin-top: 1.5rem;
+}
+@media (min-width: 640px) {
+  .dashboard-footer {
+    padding: 1.5rem 0;
+    margin-top: 2rem;
+  }
+}
+.dashboard-footer a {
+  color: var(--muted-foreground);
+  transition: color 0.2s ease;
+}
+.dashboard-footer a:hover {
+  color: var(--mantis-green);
+}
+
+/* ═══════════════════════════════════════════════
+   WALLET — Balance Hero
+   ═══════════════════════════════════════════════ */
+
+.wallet-balance {
+  font-size: 3.25rem;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.wallet-balance .wb-int {
+  background: linear-gradient(180deg, #ffffff 0%, #b8b8b8 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.wallet-balance .wb-dec {
+  background: linear-gradient(180deg, rgba(255,255,255,0.3) 0%, rgba(255,255,255,0.15) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  font-size: 2rem;
+  font-weight: 600;
+}
+
+.wallet-token-row {
+  transition: background 0.15s ease, box-shadow 0.2s ease;
+}
+.wallet-token-row:hover {
+  background: rgba(0, 210, 110, 0.03);
+  box-shadow: inset 3px 0 0 rgba(0, 210, 110, 0.4);
+}
+
+.wallet-token-balance .wtb-int {
+  color: rgba(255, 255, 255, 0.88);
+}
+.wallet-token-balance .wtb-dec {
+  color: rgba(255, 255, 255, 0.28);
+}
+
+/* ═══════════════════════════════════════════════
+   MOBILE RESPONSIVE
+   ═══════════════════════════════════════════════ */
+@media (max-width: 640px) {
+  /* Layout */
+  .mantis-card-premium { padding: 1rem; border-radius: 16px; }
+  .mantis-card { padding: 1rem; border-radius: 12px; }
+  .stat-card { padding: 0.75rem 1rem; border-radius: 12px; }
+  .hero-card { padding: 1.25rem 1rem; border-radius: 16px; }
+  .btn-glow { padding: 0.5rem 1.25rem; border-radius: 10px; font-size: 12px; }
+
+  /* Typography */
+  .brand-wordmark { font-size: 13px; letter-spacing: 0.18em; }
+  .brand-badge { font-size: 8px; padding: 1px 4px; }
+  .section-header { font-size: 0.6rem; }
+  .stat-label { font-size: 0.6rem; }
+  .stat-value { font-size: 1.25rem; }
+  .stat-value-xl { font-size: 1.75rem; }
+  .wallet-balance { font-size: 2.5rem; }
+  .wallet-balance .wb-dec { font-size: 1.5rem; }
+
+  /* Tables */
+  .chat-markdown table { min-width: unset; font-size: 0.78em; }
+  .chat-markdown th, .chat-markdown td { padding: 0.3em 0.4em; white-space: normal; }
+
+  /* Data rows */
+  .data-row { font-size: 0.8rem; }
+}
+
+/* Hide scrollbar but keep functionality */
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
 }

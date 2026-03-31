@@ -1,9 +1,9 @@
 import { buildStateSnapshot } from '@/lib/collectors';
 import { runReasoningEngine } from './engine';
 import { checkSafety } from './safety';
-import { executeActions, type ExecutionMode } from './executor';
+import { executeActions, proposeActions, type ExecutionMode } from './executor';
 import { appendAgentLog, getLastDecision } from './logger';
-import type { AgentCycleResult, ExecutionResult, StrategyConfig } from '@/lib/types';
+import type { AgentCycleResult, ExecutionResult, ProposedTransaction, StrategyConfig } from '@/lib/types';
 
 const DEFAULT_CONFIG: StrategyConfig = {
   riskProfile: 'balanced',
@@ -40,6 +40,7 @@ export async function runAgentCycle(
   // PHASE 3: ACT
   const actStart = Date.now();
   let executionResults: ExecutionResult[] = [];
+  let proposedTransactions: ProposedTransaction[] = [];
 
   // Normalize decision.decision — Claude may return unexpected formats
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -57,8 +58,12 @@ export async function runAgentCycle(
     phases.act.violations = safetyCheck.violations;
 
     if (safetyCheck.passed) {
-      const execMode = actionType === 'execute' ? mode : 'simulate';
-      executionResults = await executeActions(safetyCheck.adjustedActions, snapshot, execMode);
+      if (mode === 'propose') {
+        proposedTransactions = proposeActions(safetyCheck.adjustedActions, walletAddress);
+      } else {
+        const execMode = actionType === 'execute' ? mode : 'simulate';
+        executionResults = await executeActions(safetyCheck.adjustedActions, snapshot, execMode);
+      }
     }
   }
   phases.act.durationMs = Date.now() - actStart;
@@ -69,6 +74,7 @@ export async function runAgentCycle(
     snapshot,
     decision,
     executionResults,
+    proposedTransactions: proposedTransactions.length > 0 ? proposedTransactions : undefined,
     phases,
   };
 
